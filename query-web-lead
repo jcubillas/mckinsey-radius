@@ -1,0 +1,91 @@
+SELECT
+    [Quote__c:Caller__r:Id],
+    [Quote__c:Caller__r:AccountId],
+    [Quote__c:Caller__r:Email],
+    [Quote__c:Caller__r:HasOptedOutOfEmail],
+    [Quote__c:Caller__r:FirstName], 
+    [Quote__c:Id],
+    [Quote__c:Associated_Web_Lead__c],
+    [Quote__c:CreatedDate],
+    [Quote__c:DisplayPrice__c],
+    [Quote__c:Own_Doc_No__c],
+    [Quote__c:Pickup_Date__c],
+    [Quote__c:Title_Uploaded__c],
+    [Quote__c:Quote_Status__c],
+    [Quote__c:Vehicle_YMM__c],
+    [Quote__c:Default_Store__r:Id],
+    [Quote__c:Default_Store__r:Car_Buyer_Phone_Number__c],
+    [Quote__c:Default_Store__r:Time_Zone__c],
+    [Quote__c:DocumentUploadUrl__c],
+    [Quote__c:Pickup_Time_Period__c],
+    [OwnDocManual],
+    [TitleUploaded],
+    [Quote__c:Web_Lead_Associated__c],
+    CASE
+        WHEN DateEmail2 is not null THEN DATEADD(hour, 10-DatePart(hour, DateEmail2 AT TIME ZONE 'Central Standard Time' AT TIME ZONE timezone), DateEmail2)
+        ELSE null
+    END as DateEmail2,
+    CASE
+        WHEN DateEmail3 is not null THEN DATEADD(hour, 10-DatePart(hour, DateEmail3 AT TIME ZONE 'Central Standard Time' AT TIME ZONE timezone), DateEmail3)
+        ELSE null
+    END as DateEmail3,
+    CASE
+        WHEN DateEmail4 is not null THEN DATEADD(hour, 8-DatePart(hour, DateEmail4 AT TIME ZONE 'Central Standard Time' AT TIME ZONE timezone), DateEmail4)
+        ELSE null
+    END as DateEmail4,
+      CASE
+        WHEN DateEmail4NotSche is not null AND DatePart(hour, DateEmail4NotSche AT TIME ZONE 'Central Standard Time' AT TIME ZONE timezone) Between 8 AND 18 THEN DateEmail4NotSche
+        ELSE null
+      END as DateEmail4NotSche,
+      CASE 
+        WHEN DateEmail5NotSche is not null AND DatePart(hour, DateEmail5NotSche AT TIME ZONE 'Central Standard Time' AT TIME ZONE timezone) Between 8 AND 18 THEN DateEmail5NotSche
+        ELSE null
+      END as DateEmail5NotSche
+FROM (
+  SELECT 
+    weblead.[Quote__c:Caller__r:Id],
+    weblead.[Quote__c:Caller__r:AccountId],
+    contact.Email as [Quote__c:Caller__r:Email],
+    weblead.[Quote__c:Caller__r:HasOptedOutOfEmail],
+    weblead.[Quote__c:Caller__r:FirstName], 
+    weblead.[Quote__c:Id],
+    quote.Associated_Web_Lead__c as [Quote__c:Associated_Web_Lead__c],
+    quote.Web_Lead_Associated__c as [Quote__c:Web_Lead_Associated__c],
+    quote.CreatedDate as [Quote__c:CreatedDate],
+    CASE 
+        WHEN quote.Quote_Price__c is not null THEN quote.Quote_Price__c
+        ELSE quote.DisplayPrice__c
+    END as [Quote__c:DisplayPrice__c],
+    quote.Pickup_Date__c as [Quote__c:Pickup_Date__c],
+    quote.DocumentUploadUrl__c as [Quote__c:DocumentUploadUrl__c],
+    quote.Own_Doc_No__c as  [Quote__c:Own_Doc_No__c],
+    quote.TitleUploaded__c as [Quote__c:Title_Uploaded__c],
+    quote.Quote_Status__c as [Quote__c:Quote_Status__c],
+    quote.Vehicle_YMM__c as [Quote__c:Vehicle_YMM__c],
+    quote.Default_Store__c as [Quote__c:Default_Store__r:Id],
+    store.Car_Buyer_Phone_Number__c as [Quote__c:Default_Store__r:Car_Buyer_Phone_Number__c],
+    store.Time_Zone__c as [Quote__c:Default_Store__r:Time_Zone__c],
+    weblead.[Quote__c:Pickup_Time_Period__c],
+    IIF(quote.Own_Doc_No__c is not null, 1, 0) AS OwnDocManual,
+    IIF(quote.TitleUploaded__c = 1, 1, 0) AS TitleUploaded,
+    CASE
+      WHEN store.Time_Zone__c = 'HST' THEN 'Hawaiian Standard Time'
+      WHEN store.Time_Zone__c = 'MST' THEN 'Mountain Standard Time'
+      WHEN store.Time_Zone__c = 'AKST' THEN 'Alaskan Standard Time'
+      WHEN store.Time_Zone__c = 'CST' THEN 'Central Standard Time'
+      WHEN store.Time_Zone__c = 'EST' THEN 'Eastern Standard Time'
+      ELSE 'Pacific Standard Time'
+    END as timezone,
+    DateAdd(DAY, 1, quote.CreatedDate) as DateEmail2, 
+    DateAdd(DAY, 2, quote.CreatedDate) as DateEmail3, 
+    DATEADD(hour, 8, quote.Pickup_Date__c) as DateEmail4,
+    DateAdd(hour, 68, quote.CreatedDate) as DateEmail4NotSche,
+    DateAdd(minute, 45, DateAdd(hour, 71, quote.CreatedDate)) as DateEmail5NotSche
+  FROM JB_Web_Lead_FV as weblead
+  INNER JOIN Quote__c_Salesforce AS quote
+    ON weblead.[Quote__c:Id] = quote.Id   
+  LEFT JOIN Contact_Salesforce as contact
+    ON quote.Caller__c = contact.Id
+  LEFT JOIN Store__c_Salesforce as store
+    ON quote.Default_Store__c = store.Id
+) sq
